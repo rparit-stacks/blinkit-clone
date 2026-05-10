@@ -26,7 +26,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
-        return path.startsWith("/api/auth/");
+        return path.startsWith("/api/auth/")
+                || path.startsWith("/api/seller/auth/")
+                || path.startsWith("/api/delivery/auth/");
     }
 
     @Override
@@ -50,6 +52,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
                         userDetails = new org.springframework.security.core.userdetails.User(
                                 adminId, "", authorities);
+                    } else if (jwtUtil.isSellerToken(token)) {
+                        String sellerId = jwtUtil.extractUserId(token);
+                        var authorities = List.of(new SimpleGrantedAuthority("ROLE_SELLER"));
+                        userDetails = new org.springframework.security.core.userdetails.User(
+                                sellerId, "", authorities);
+                    } else if (jwtUtil.isDeliveryToken(token)) {
+                        String partnerId = jwtUtil.extractUserId(token);
+                        var authorities = List.of(new SimpleGrantedAuthority("ROLE_DELIVERY"));
+                        userDetails = new org.springframework.security.core.userdetails.User(
+                                partnerId, "", authorities);
                     } else {
                         String userId = jwtUtil.extractUserId(token);
                         userDetails = userDetailsService.loadUserByUsername(userId);

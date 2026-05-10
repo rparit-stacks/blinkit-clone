@@ -46,6 +46,9 @@ public class Order {
 
     private OrderStatus status;
 
+    // Applied coupon
+    private String couponCode;
+
     // Idempotency key from client to prevent duplicate orders
     private String idempotencyKey;
 

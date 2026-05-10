@@ -22,6 +22,25 @@ public class DeliveryPartner {
     private String vehicleType;   // BIKE | CYCLE | SCOOTER
     private String vehicleNumber;
 
+    // Auth
+    private String password;      // BCrypt hashed
+
+    // KYC documents
+    private String idProofUrl;
+    private String vehicleImageUrl;
+    private String licenseUrl;
+
+    // Bank details
+    private String bankAccountNumber;
+    private String bankIfsc;
+    private String bankAccountHolderName;
+    private String bankName;
+    private String upiId;
+
+    // Location
+    private String currentLatitude;
+    private String currentLongitude;
+
     @Builder.Default
     private PartnerStatus status = PartnerStatus.PENDING;
 

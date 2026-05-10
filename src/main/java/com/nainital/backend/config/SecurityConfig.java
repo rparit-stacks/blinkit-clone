@@ -8,6 +8,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -28,15 +29,25 @@ public class SecurityConfig {
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers("/api/seller/auth/**").permitAll()
+                        .requestMatchers("/api/delivery/auth/**").permitAll()
                         .requestMatchers("/api/zones/check").permitAll()
                         .requestMatchers("/api/catalog/**").permitAll()
                         .requestMatchers("/api/admin/login").permitAll()
                         .requestMatchers("/api/coupons/validate").permitAll()
+                        .requestMatchers("/api/cms/sections").permitAll()
                         .requestMatchers("/api/admin/**").authenticated()
+                        .requestMatchers("/api/seller/**").authenticated()
+                        .requestMatchers("/api/delivery/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public BCryptPasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }

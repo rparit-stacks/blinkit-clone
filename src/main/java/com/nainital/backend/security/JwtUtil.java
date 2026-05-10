@@ -48,6 +48,24 @@ public class JwtUtil {
                 .compact();
     }
 
+    public String generateSellerToken(String sellerId, String email) {
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .subject(sellerId)
+                .claims(Map.of("email", email, "role", "SELLER", "type", "seller"))
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + 8 * 3600 * 1000L)) // 8 hours
+                .signWith(secretKey)
+                .compact();
+    }
+
+    public boolean isSellerToken(String token) {
+        try {
+            String type = extractClaim(token, claims -> claims.get("type", String.class));
+            return "seller".equals(type);
+        } catch (Exception e) { return false; }
+    }
+
     public String generateAdminToken(String adminId, String role) {
         long now = System.currentTimeMillis();
         return Jwts.builder()
@@ -63,6 +81,24 @@ public class JwtUtil {
         try {
             String type = extractClaim(token, claims -> claims.get("type", String.class));
             return "admin".equals(type);
+        } catch (Exception e) { return false; }
+    }
+
+    public String generateDeliveryToken(String partnerId, String phone) {
+        long now = System.currentTimeMillis();
+        return Jwts.builder()
+                .subject(partnerId)
+                .claims(Map.of("phone", phone, "role", "DELIVERY", "type", "delivery"))
+                .issuedAt(new Date(now))
+                .expiration(new Date(now + 8 * 3600 * 1000L)) // 8 hours
+                .signWith(secretKey)
+                .compact();
+    }
+
+    public boolean isDeliveryToken(String token) {
+        try {
+            String type = extractClaim(token, claims -> claims.get("type", String.class));
+            return "delivery".equals(type);
         } catch (Exception e) { return false; }
     }
 

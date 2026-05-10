@@ -1,7 +1,9 @@
 package com.nainital.backend.coupon.service;
 
 import com.nainital.backend.coupon.dto.CouponRequest;
+import com.nainital.backend.coupon.dto.CouponValidateResponse;
 import com.nainital.backend.coupon.model.Coupon;
+import com.nainital.backend.coupon.model.DiscountType;
 import com.nainital.backend.coupon.repository.CouponRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -64,7 +66,7 @@ public class CouponService {
         return repo.save(c);
     }
 
-    public Coupon validate(String code, int orderTotal) {
+    public CouponValidateResponse validate(String code, int orderTotal) {
         Coupon c = repo.findByCode(code.toUpperCase())
                 .orElseThrow(() -> new IllegalArgumentException("Coupon not found"));
         if (!c.isActive()) throw new IllegalStateException("Coupon is inactive");
@@ -74,6 +76,47 @@ public class CouponService {
             throw new IllegalStateException("Minimum order value is ₹" + c.getMinOrderValue());
         if (c.getUsageLimit() > 0 && c.getUsedCount() >= c.getUsageLimit())
             throw new IllegalStateException("Coupon usage limit reached");
+        int discount = calcDiscount(c, orderTotal);
+        return CouponValidateResponse.builder()
+                .code(c.getCode())
+                .discountType(c.getDiscountType().name())
+                .discountValue(c.getDiscountValue())
+                .maxDiscount(c.getMaxDiscount())
+                .minOrderValue(c.getMinOrderValue())
+                .discountAmount(discount)
+                .description(c.getDescription())
+                .build();
+    }
+
+    // Compute actual rupee discount for a given subtotal
+    public int calcDiscount(Coupon c, int subtotal) {
+        if (c.getDiscountType() == DiscountType.FLAT) {
+            return Math.min(c.getDiscountValue(), subtotal);
+        }
+        // PERCENT
+        int raw = (int) Math.round(subtotal * c.getDiscountValue() / 100.0);
+        return (c.getMaxDiscount() > 0) ? Math.min(raw, c.getMaxDiscount()) : raw;
+    }
+
+    // Validates + returns the Coupon entity for use in OrderService
+    public Coupon validateAndGet(String code, int subtotal) {
+        Coupon c = repo.findByCode(code.toUpperCase())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid coupon code"));
+        if (!c.isActive()) throw new IllegalStateException("Coupon is inactive");
+        if (c.getExpiresAt() != null && c.getExpiresAt().isBefore(java.time.Instant.now()))
+            throw new IllegalStateException("Coupon has expired");
+        if (subtotal < c.getMinOrderValue())
+            throw new IllegalStateException("Minimum order value is ₹" + c.getMinOrderValue());
+        if (c.getUsageLimit() > 0 && c.getUsedCount() >= c.getUsageLimit())
+            throw new IllegalStateException("Coupon usage limit reached");
         return c;
+    }
+
+    // Increments usedCount — call after order is confirmed
+    public void incrementUsage(String code) {
+        repo.findByCode(code.toUpperCase()).ifPresent(c -> {
+            c.setUsedCount(c.getUsedCount() + 1);
+            repo.save(c);
+        });
     }
 }

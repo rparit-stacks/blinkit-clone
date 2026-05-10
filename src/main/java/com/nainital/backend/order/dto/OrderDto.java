@@ -20,6 +20,7 @@ public class OrderDto {
     private int deliveryFee;
     private int taxes;
     private int discount;
+    private String couponCode;
     private int total;
     private String addressSnapshot;
     private String paymentMode;

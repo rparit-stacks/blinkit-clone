@@ -1,14 +1,18 @@
 package com.nainital.backend.order.service;
 
+import com.nainital.backend.coupon.model.Coupon;
+import com.nainital.backend.coupon.service.CouponService;
 import com.nainital.backend.order.dto.*;
 import com.nainital.backend.order.model.*;
 import com.nainital.backend.order.repository.CartRepository;
 import com.nainital.backend.order.repository.OrderRepository;
+import com.nainital.backend.suborder.service.SubOrderService;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
 import lombok.RequiredArgsConstructor;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.Mac;
@@ -24,6 +28,9 @@ public class OrderService {
     private final OrderRepository orderRepo;
     private final CartRepository cartRepo;
     private final CartService cartService;
+    private final CouponService couponService;
+    @Lazy
+    private final SubOrderService subOrderService;
 
     @Value("${razorpay.key-id}")
     private String razorpayKeyId;
@@ -68,7 +75,17 @@ public class OrderService {
         int subtotal = cartService.calcSubtotal(cartItems);
         int deliveryFee = cartService.calcDeliveryFee(subtotal);
         int taxes = cartService.calcTaxes(subtotal);
-        int total = cartService.calcTotal(subtotal, deliveryFee, taxes, 0);
+
+        // Apply coupon discount if provided
+        int discount = 0;
+        String appliedCouponCode = null;
+        if (req.getCouponCode() != null && !req.getCouponCode().isBlank()) {
+            Coupon coupon = couponService.validateAndGet(req.getCouponCode(), subtotal);
+            discount = couponService.calcDiscount(coupon, subtotal);
+            appliedCouponCode = coupon.getCode();
+        }
+
+        int total = cartService.calcTotal(subtotal, deliveryFee, taxes, discount);
 
         Order order = Order.builder()
                 .userId(userId)
@@ -76,7 +93,8 @@ public class OrderService {
                 .subtotal(subtotal)
                 .deliveryFee(deliveryFee)
                 .taxes(taxes)
-                .discount(0)
+                .discount(discount)
+                .couponCode(appliedCouponCode)
                 .total(total)
                 .addressId(req.getAddressId())
                 .addressSnapshot(req.getAddressSnapshotJson())
@@ -85,10 +103,12 @@ public class OrderService {
                 .idempotencyKey(req.getIdempotencyKey())
                 .build();
 
-        // For COD: save immediately and clear cart
+        // For COD: save immediately, clear cart, split sub-orders
         if (req.getPaymentMode().equals("cod")) {
             order = orderRepo.save(order);
             cartService.clearCartInternal(userId);
+            if (appliedCouponCode != null) couponService.incrementUsage(appliedCouponCode);
+            subOrderService.splitAndCreate(order);
             return CreateOrderResponse.builder()
                     .orderId(order.getId())
                     .status("PROCESSING")
@@ -143,8 +163,12 @@ public class OrderService {
         order.setStatus(OrderStatus.PROCESSING);
         order = orderRepo.save(order);
 
-        // Clear cart after successful payment
+        // Clear cart + increment coupon usage after successful payment
         cartService.clearCartInternal(userId);
+        if (order.getCouponCode() != null) couponService.incrementUsage(order.getCouponCode());
+
+        // Split into sub-orders for each seller
+        subOrderService.splitAndCreate(order);
 
         return toDto(order);
     }
@@ -221,6 +245,7 @@ public class OrderService {
                 .deliveryFee(o.getDeliveryFee())
                 .taxes(o.getTaxes())
                 .discount(o.getDiscount())
+                .couponCode(o.getCouponCode())
                 .total(o.getTotal())
                 .addressSnapshot(o.getAddressSnapshot())
                 .paymentMode(o.getPaymentMode())

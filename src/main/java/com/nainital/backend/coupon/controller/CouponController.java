@@ -2,6 +2,7 @@ package com.nainital.backend.coupon.controller;
 
 import com.nainital.backend.common.ApiResponse;
 import com.nainital.backend.coupon.dto.CouponRequest;
+import com.nainital.backend.coupon.dto.CouponValidateResponse;
 import com.nainital.backend.coupon.model.Coupon;
 import com.nainital.backend.coupon.service.CouponService;
 import jakarta.validation.Valid;
@@ -50,9 +51,9 @@ public class CouponController {
         return ResponseEntity.ok(ApiResponse.ok("Deleted", null));
     }
 
-    // Public: validate coupon at checkout
+    // Public: validate coupon at checkout — returns discount amount
     @PostMapping("/validate")
-    public ResponseEntity<ApiResponse<Coupon>> validate(
+    public ResponseEntity<ApiResponse<CouponValidateResponse>> validate(
             @RequestParam String code, @RequestParam int orderTotal) {
         return ResponseEntity.ok(ApiResponse.ok(couponService.validate(code, orderTotal)));
     }
