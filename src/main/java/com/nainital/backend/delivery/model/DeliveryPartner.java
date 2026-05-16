@@ -5,6 +5,8 @@ import org.springframework.data.annotation.*;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 @Document("delivery_partners")
@@ -47,10 +49,14 @@ public class DeliveryPartner {
     @Builder.Default
     private boolean online = false;
 
-    @Builder.Default
-    private boolean active = true;
+  @Builder.Default
+  private boolean active = true;
 
-    private int totalDeliveries;
+  /** FCM device tokens for delivery app push notifications. */
+  @Builder.Default
+  private List<String> fcmTokens = new ArrayList<>();
+
+  private int totalDeliveries;
     private double rating;
 
     @CreatedDate  private Instant createdAt;

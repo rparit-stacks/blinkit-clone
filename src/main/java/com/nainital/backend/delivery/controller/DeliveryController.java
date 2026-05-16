@@ -123,6 +123,31 @@ public class DeliveryController {
         return ResponseEntity.ok(ApiResponse.ok("Withdrawal request submitted", wr));
     }
 
+    // ─── Push (FCM) ───────────────────────────────────────────────────────────
+
+    @PostMapping("/push-token")
+    public ResponseEntity<ApiResponse<String>> registerPushToken(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        if (token == null || token.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("token is required"));
+        }
+        partnerService.registerFcmToken(userDetails.getUsername(), token);
+        return ResponseEntity.ok(ApiResponse.ok("Push token registered", "ok"));
+    }
+
+    @DeleteMapping("/push-token")
+    public ResponseEntity<ApiResponse<String>> removePushToken(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        if (token != null && !token.isBlank()) {
+            partnerService.removeFcmToken(userDetails.getUsername(), token);
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Push token removed", "ok"));
+    }
+
     // ─── Dashboard ────────────────────────────────────────────────────────────
 
     @GetMapping("/dashboard")

@@ -11,6 +11,7 @@ import com.nainital.backend.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -141,5 +142,27 @@ public class DeliveryPartnerService {
         }
         p.setOnline(!p.isOnline());
         return repo.save(p);
+    }
+
+    public void registerFcmToken(String partnerId, String token) {
+        DeliveryPartner p = getById(partnerId);
+        List<String> tokens = p.getFcmTokens() != null ? new ArrayList<>(p.getFcmTokens()) : new ArrayList<>();
+        if (!tokens.contains(token)) {
+            tokens.add(token);
+            if (tokens.size() > 10) {
+                tokens = new ArrayList<>(tokens.subList(tokens.size() - 10, tokens.size()));
+            }
+        }
+        p.setFcmTokens(tokens);
+        repo.save(p);
+    }
+
+    public void removeFcmToken(String partnerId, String token) {
+        DeliveryPartner p = getById(partnerId);
+        List<String> tokens = p.getFcmTokens();
+        if (tokens != null && tokens.remove(token)) {
+            p.setFcmTokens(tokens);
+            repo.save(p);
+        }
     }
 }
