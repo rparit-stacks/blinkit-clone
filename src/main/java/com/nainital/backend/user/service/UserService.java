@@ -7,6 +7,7 @@ import com.nainital.backend.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -118,6 +119,30 @@ public class UserService {
         clearDefaultAddresses(userId);
         address.setDefaultAddress(true);
         return addressRepository.save(address);
+    }
+
+    // ─────────────────────────────────────────────
+    // FCM Push Tokens
+    // ─────────────────────────────────────────────
+
+    public void registerFcmToken(String userId, String token) {
+        User user = findUser(userId);
+        List<String> tokens = user.getFcmTokens() != null ? new ArrayList<>(user.getFcmTokens()) : new ArrayList<>();
+        if (!tokens.contains(token)) {
+            tokens.add(token);
+            if (tokens.size() > 10) tokens = tokens.subList(tokens.size() - 10, tokens.size());
+        }
+        user.setFcmTokens(tokens);
+        userRepository.save(user);
+    }
+
+    public void removeFcmToken(String userId, String token) {
+        User user = findUser(userId);
+        List<String> tokens = user.getFcmTokens();
+        if (tokens != null && tokens.remove(token)) {
+            user.setFcmTokens(tokens);
+            userRepository.save(user);
+        }
     }
 
     // ─────────────────────────────────────────────

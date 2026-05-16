@@ -11,6 +11,8 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Document(collection = "users")
 @Data
@@ -40,6 +42,10 @@ public class User {
 
     @Builder.Default
     private boolean onboardingCompleted = false;
+
+    /** FCM push tokens — one per device/browser. Max 10 kept (oldest pruned). */
+    @Builder.Default
+    private List<String> fcmTokens = new ArrayList<>();
 
     @CreatedDate
     private Instant createdAt;

@@ -125,4 +125,31 @@ public class UserController {
         Address address = userService.setDefaultAddress(userDetails.getUsername(), id);
         return ResponseEntity.ok(ApiResponse.ok("Default address updated", address));
     }
+
+    // ─────────────────────────────────────────────
+    // Push Notifications (FCM)
+    // ─────────────────────────────────────────────
+
+    @PostMapping("/push-token")
+    public ResponseEntity<ApiResponse<String>> registerPushToken(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        if (token == null || token.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("token is required"));
+        }
+        userService.registerFcmToken(userDetails.getUsername(), token);
+        return ResponseEntity.ok(ApiResponse.ok("Push token registered", "ok"));
+    }
+
+    @DeleteMapping("/push-token")
+    public ResponseEntity<ApiResponse<String>> removePushToken(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        if (token != null && !token.isBlank()) {
+            userService.removeFcmToken(userDetails.getUsername(), token);
+        }
+        return ResponseEntity.ok(ApiResponse.ok("Push token removed", "ok"));
+    }
 }

@@ -15,12 +15,20 @@ import org.springframework.data.mongodb.core.SimpleMongoClientDatabaseFactory;
 @EnableMongoAuditing
 public class MongoConfig {
 
-    private static final String URI =
+    private static final String DEFAULT_URI =
             "mongodb+srv://rparit1934:Rparit%40111288@nainital.gxppspd.mongodb.net/nainital?retryWrites=true&w=majority&appName=nainital";
+
+    private static String mongoUri() {
+        String env = System.getenv("MONGODB_URI");
+        if (env != null && !env.isBlank()) return env.trim();
+        String prop = System.getProperty("spring.data.mongodb.uri");
+        if (prop != null && !prop.isBlank()) return prop.trim();
+        return DEFAULT_URI;
+    }
 
     @Bean
     public MongoClient mongoClient() {
-        ConnectionString connectionString = new ConnectionString(URI);
+        ConnectionString connectionString = new ConnectionString(mongoUri());
         MongoClientSettings settings = MongoClientSettings.builder()
                 .applyConnectionString(connectionString)
                 .build();
