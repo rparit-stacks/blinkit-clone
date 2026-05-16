@@ -1,5 +1,6 @@
 package com.nainital.backend.config;
 
+import com.nainital.backend.internal.InternalApiKeyFilter;
 import com.nainital.backend.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final InternalApiKeyFilter internalApiKeyFilter;
     private final CorsConfig corsConfig;
 
     @Bean
@@ -40,11 +42,13 @@ public class SecurityConfig {
                         .requestMatchers("/api/cms/sections").permitAll()
                         .requestMatchers("/api/upload").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers("/api/internal/**").permitAll()
                         .requestMatchers("/api/admin/**").authenticated()
                         .requestMatchers("/api/seller/**").authenticated()
                         .requestMatchers("/api/delivery/**").authenticated()
                         .anyRequest().authenticated()
                 )
+                .addFilterBefore(internalApiKeyFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
