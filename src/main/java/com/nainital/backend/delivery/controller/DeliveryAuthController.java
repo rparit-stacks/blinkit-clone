@@ -1,9 +1,11 @@
 package com.nainital.backend.delivery.controller;
 
 import com.nainital.backend.common.ApiResponse;
+import com.nainital.backend.common.OtpService;
 import com.nainital.backend.delivery.dto.*;
 import com.nainital.backend.delivery.model.DeliveryPartner;
 import com.nainital.backend.delivery.service.DeliveryPartnerService;
+import com.nainital.backend.security.JwtUtil;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -11,21 +13,45 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/delivery")
 @RequiredArgsConstructor
 public class DeliveryAuthController {
 
     private final DeliveryPartnerService service;
+    private final JwtUtil jwtUtil;
+    private final OtpService otpService;
 
     // ─── Public endpoints ─────────────────────────────────────────────────────
+
+    @PostMapping("/auth/send-otp")
+    public ResponseEntity<ApiResponse<Map<String, String>>> sendOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Email is required"));
+        }
+        String devOtp = otpService.sendOtp(email, "Delivery Partner Portal");
+        Map<String, String> resp = devOtp != null ? Map.of("otp", devOtp) : Map.of();
+        return ResponseEntity.ok(ApiResponse.ok("OTP sent to " + email, resp));
+    }
+
+    @PostMapping("/auth/verify-otp")
+    public ResponseEntity<ApiResponse<Map<String, String>>> verifyOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String otp = body.get("otp");
+        otpService.verifyOtp(email, otp);
+        return ResponseEntity.ok(ApiResponse.ok("Email verified", Map.of("verified", "true")));
+    }
 
     @PostMapping("/auth/register")
     public ResponseEntity<ApiResponse<DeliveryAuthResponse>> register(
             @Valid @RequestBody DeliveryRegisterRequest req) {
         DeliveryPartner partner = service.register(req);
+        String token = jwtUtil.generateDeliveryToken(partner.getId(), partner.getPhone());
         return ResponseEntity.ok(ApiResponse.ok("Registered successfully. Await admin approval.",
-                toAuthResponse(partner, null)));
+                toAuthResponse(partner, token)));
     }
 
     @PostMapping("/auth/login")

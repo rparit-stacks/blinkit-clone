@@ -6,6 +6,7 @@ import com.nainital.backend.order.dto.*;
 import com.nainital.backend.order.model.*;
 import com.nainital.backend.order.repository.CartRepository;
 import com.nainital.backend.order.repository.OrderRepository;
+import com.nainital.backend.notification.service.NotificationPublisher;
 import com.nainital.backend.suborder.service.SubOrderService;
 import com.razorpay.RazorpayClient;
 import com.razorpay.RazorpayException;
@@ -31,6 +32,7 @@ public class OrderService {
     private final CouponService couponService;
     @Lazy
     private final SubOrderService subOrderService;
+    private final NotificationPublisher notificationPublisher;
 
     @Value("${razorpay.key-id}")
     private String razorpayKeyId;
@@ -109,6 +111,7 @@ public class OrderService {
             cartService.clearCartInternal(userId);
             if (appliedCouponCode != null) couponService.incrementUsage(appliedCouponCode);
             subOrderService.splitAndCreate(order);
+            notificationPublisher.orderPlaced(order);
             return CreateOrderResponse.builder()
                     .orderId(order.getId())
                     .status("PROCESSING")
@@ -169,6 +172,7 @@ public class OrderService {
 
         // Split into sub-orders for each seller
         subOrderService.splitAndCreate(order);
+        notificationPublisher.orderPlaced(order);
 
         return toDto(order);
     }
@@ -193,7 +197,9 @@ public class OrderService {
             throw new IllegalStateException("Cannot cancel an order that is already dispatched/delivered");
         }
         order.setStatus(OrderStatus.CANCELLED);
-        return toDto(orderRepo.save(order));
+        order = orderRepo.save(order);
+        notificationPublisher.orderCancelled(userId, orderId);
+        return toDto(order);
     }
 
     // ─── Razorpay helpers ─────────────────────────────────────────────────────

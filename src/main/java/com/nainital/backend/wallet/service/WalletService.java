@@ -2,6 +2,7 @@ package com.nainital.backend.wallet.service;
 
 import com.nainital.backend.wallet.model.*;
 import com.nainital.backend.wallet.repository.*;
+import com.nainital.backend.notification.service.NotificationPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class WalletService {
 
+    private final NotificationPublisher notificationPublisher;
     private final WalletRepository walletRepo;
     private final WalletTransactionRepository txRepo;
     private final WithdrawalRequestRepository withdrawalRepo;
@@ -127,12 +129,14 @@ public class WalletService {
 
     public WalletTransaction refundToCustomer(String customerId, String orderId,
                                                int refundAmountRupees, String adminId) {
-        return credit(customerId, WalletOwnerType.CUSTOMER,
+        WalletTransaction tx = credit(customerId, WalletOwnerType.CUSTOMER,
                 refundAmountRupees * 100L,
                 TransactionType.REFUND,
                 orderId, "ORDER",
                 "Refund for order " + orderId,
                 "admin:" + adminId);
+        notificationPublisher.refundCredited(customerId, orderId, refundAmountRupees);
+        return tx;
     }
 
     // ─── Withdrawal ──────────────────────────────────────────────────────────
@@ -209,7 +213,9 @@ public class WalletService {
                 .initiatedBy("admin:" + adminId)
                 .build());
 
-        return withdrawalRepo.save(wr);
+        wr = withdrawalRepo.save(wr);
+        notificationPublisher.withdrawalProcessed(wr, true);
+        return wr;
     }
 
     public WithdrawalRequest rejectWithdrawal(String withdrawalId, String adminId, String reason) {
@@ -241,7 +247,9 @@ public class WalletService {
                 .initiatedBy("admin:" + adminId)
                 .build());
 
-        return withdrawalRepo.save(wr);
+        wr = withdrawalRepo.save(wr);
+        notificationPublisher.withdrawalProcessed(wr, false);
+        return wr;
     }
 
     // ─── Admin manual adjust ─────────────────────────────────────────────────

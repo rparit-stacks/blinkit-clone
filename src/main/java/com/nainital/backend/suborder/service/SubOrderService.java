@@ -6,6 +6,7 @@ import com.nainital.backend.order.model.OrderStatus;
 import com.nainital.backend.seller.repository.SellerRepository;
 import com.nainital.backend.suborder.model.SubOrder;
 import com.nainital.backend.suborder.repository.SubOrderRepository;
+import com.nainital.backend.notification.service.NotificationPublisher;
 import com.nainital.backend.wallet.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class SubOrderService {
     private final SubOrderRepository subOrderRepo;
     private final SellerRepository sellerRepo;
     private final WalletService walletService;
+    private final NotificationPublisher notificationPublisher;
 
     private static final int DEFAULT_COMMISSION_RATE = 10; // 10%
 
@@ -96,7 +98,9 @@ public class SubOrderService {
                     .earningCredited(false)
                     .build();
 
-            subOrders.add(subOrderRepo.save(sub));
+            SubOrder saved = subOrderRepo.save(sub);
+            subOrders.add(saved);
+            notificationPublisher.newSubOrderForSeller(saved);
         }
 
         return subOrders;
@@ -119,7 +123,9 @@ public class SubOrderService {
                 sub.setEarningCredited(true);
             }
         }
-        return subOrderRepo.save(sub);
+        sub = subOrderRepo.save(sub);
+        notificationPublisher.subOrderStatusForCustomer(sub, newStatus);
+        return sub;
     }
 
     // Admin override — can update any sub-order
@@ -136,7 +142,9 @@ public class SubOrderService {
                 sub.setEarningCredited(true);
             }
         }
-        return subOrderRepo.save(sub);
+        sub = subOrderRepo.save(sub);
+        notificationPublisher.subOrderStatusForCustomer(sub, newStatus);
+        return sub;
     }
 
     // ─── Queries ─────────────────────────────────────────────────────────────

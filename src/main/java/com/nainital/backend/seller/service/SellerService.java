@@ -8,6 +8,7 @@ import com.nainital.backend.catalog.repository.StoreRepository;
 import com.nainital.backend.order.model.Order;
 import com.nainital.backend.order.model.OrderStatus;
 import com.nainital.backend.order.repository.OrderRepository;
+import com.nainital.backend.notification.service.NotificationPublisher;
 import com.nainital.backend.security.JwtUtil;
 import com.nainital.backend.seller.dto.*;
 import com.nainital.backend.seller.model.Seller;
@@ -34,6 +35,7 @@ public class SellerService {
     private final OrderRepository orderRepository;
     private final JwtUtil jwtUtil;
     private final BCryptPasswordEncoder passwordEncoder;
+    private final NotificationPublisher notificationPublisher;
 
     // ─── Auth ────────────────────────────────────────────────────────────────
 
@@ -67,6 +69,7 @@ public class SellerService {
                 .build();
 
         seller = sellerRepository.save(seller);
+        notificationPublisher.sellerRegistered(seller.getId(), seller.getStoreName());
         String token = jwtUtil.generateSellerToken(seller.getId(), seller.getEmail());
         return toAuthResponse(seller, token);
     }
@@ -130,6 +133,8 @@ public class SellerService {
             case "licenseUrl" -> s.setLicenseUrl(url);
             case "businessProofUrl" -> s.setBusinessProofUrl(url);
             case "idProofUrl" -> s.setIdProofUrl(url);
+            case "logoUrl" -> s.setLogoUrl(url);
+            case "bannerUrl" -> s.setBannerUrl(url);
             default -> throw new IllegalArgumentException("Unknown document field: " + field);
         }
         sellerRepository.save(s);
@@ -321,6 +326,14 @@ public class SellerService {
 
     public Seller approveSeller(String sellerId) {
         Seller s = getById(sellerId);
+
+        // Require at least one KYC document and a profile photo before approval
+        boolean hasKyc = s.getIdProofUrl() != null || s.getPanCardUrl() != null
+                || s.getGstCertificateUrl() != null || s.getBusinessProofUrl() != null;
+        if (!hasKyc) {
+            throw new IllegalStateException("Cannot approve: seller has not uploaded any KYC documents.");
+        }
+
         s.setStatus(SellerStatus.APPROVED);
         s.setRejectionReason(null);
         s = sellerRepository.save(s);
@@ -348,6 +361,7 @@ public class SellerService {
             s.setStoreId(store.getId());
             s = sellerRepository.save(s);
         }
+        notificationPublisher.sellerApproved(s.getId());
         return s;
     }
 
@@ -355,7 +369,9 @@ public class SellerService {
         Seller s = getById(sellerId);
         s.setStatus(SellerStatus.REJECTED);
         s.setRejectionReason(reason);
-        return sellerRepository.save(s);
+        s = sellerRepository.save(s);
+        notificationPublisher.sellerRejected(s.getId(), reason);
+        return s;
     }
 
     // ─── Helpers ─────────────────────────────────────────────────────────────

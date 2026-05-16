@@ -6,6 +6,7 @@ import com.nainital.backend.delivery.dto.UpdateDeliveryProfileRequest;
 import com.nainital.backend.delivery.model.DeliveryPartner;
 import com.nainital.backend.delivery.model.PartnerStatus;
 import com.nainital.backend.delivery.repository.DeliveryPartnerRepository;
+import com.nainital.backend.notification.service.NotificationPublisher;
 import com.nainital.backend.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -19,6 +20,7 @@ public class DeliveryPartnerService {
     private final DeliveryPartnerRepository repo;
     private final BCryptPasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final NotificationPublisher notificationPublisher;
 
     // ─── Admin CRUD ───────────────────────────────────────────────────────────
 
@@ -49,14 +51,25 @@ public class DeliveryPartnerService {
 
     public DeliveryPartner approve(String id) {
         DeliveryPartner p = getById(id);
+
+        // Require at least one KYC document before approval
+        boolean hasKyc = p.getIdProofUrl() != null || p.getLicenseUrl() != null || p.getVehicleImageUrl() != null;
+        if (!hasKyc) {
+            throw new IllegalStateException("Cannot approve: delivery partner has not uploaded any KYC documents.");
+        }
+
         p.setStatus(PartnerStatus.APPROVED);
-        return repo.save(p);
+        p = repo.save(p);
+        notificationPublisher.deliveryPartnerApproved(p.getId());
+        return p;
     }
 
     public DeliveryPartner block(String id, boolean block) {
         DeliveryPartner p = getById(id);
         p.setStatus(block ? PartnerStatus.BLOCKED : PartnerStatus.APPROVED);
-        return repo.save(p);
+        p = repo.save(p);
+        notificationPublisher.deliveryPartnerBlocked(p.getId(), block);
+        return p;
     }
 
     public void delete(String id) {
@@ -69,7 +82,7 @@ public class DeliveryPartnerService {
     public DeliveryPartner register(DeliveryRegisterRequest req) {
         if (repo.existsByPhone(req.getPhone()))
             throw new IllegalArgumentException("Phone already registered");
-        return repo.save(DeliveryPartner.builder()
+        DeliveryPartner p = repo.save(DeliveryPartner.builder()
                 .name(req.getName())
                 .phone(req.getPhone())
                 .email(req.getEmail())
@@ -78,6 +91,8 @@ public class DeliveryPartnerService {
                 .vehicleNumber(req.getVehicleNumber())
                 .status(PartnerStatus.PENDING)
                 .build());
+        notificationPublisher.deliveryPartnerRegistered(p.getId(), p.getName());
+        return p;
     }
 
     /**

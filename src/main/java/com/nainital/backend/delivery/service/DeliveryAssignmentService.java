@@ -10,6 +10,7 @@ import com.nainital.backend.suborder.model.SubOrder;
 import com.nainital.backend.suborder.repository.SubOrderRepository;
 import com.nainital.backend.wallet.model.TransactionType;
 import com.nainital.backend.wallet.model.WalletOwnerType;
+import com.nainital.backend.notification.service.NotificationPublisher;
 import com.nainital.backend.wallet.service.WalletService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
@@ -29,6 +30,7 @@ public class DeliveryAssignmentService {
 
     @Lazy
     private final WalletService walletService;
+    private final NotificationPublisher notificationPublisher;
 
     // ─── Utility ─────────────────────────────────────────────────────────────
 
@@ -86,6 +88,7 @@ public class DeliveryAssignmentService {
         subOrder.setDeliveryPartnerId(deliveryPartnerId);
         subOrderRepo.save(subOrder);
 
+        notificationPublisher.deliveryAssigned(saved);
         return saved;
     }
 
@@ -126,7 +129,9 @@ public class DeliveryAssignmentService {
             default -> {}
         }
 
-        return assignmentRepo.save(assignment);
+        assignment = assignmentRepo.save(assignment);
+        notificationPublisher.deliveryStatusForCustomer(assignment, newStatus);
+        return assignment;
     }
 
     // ─── Admin override status ────────────────────────────────────────────────
@@ -153,7 +158,9 @@ public class DeliveryAssignmentService {
             default -> {}
         }
 
-        return assignmentRepo.save(assignment);
+        assignment = assignmentRepo.save(assignment);
+        notificationPublisher.deliveryStatusForCustomer(assignment, newStatus);
+        return assignment;
     }
 
     // ─── Wallet credit on delivery ────────────────────────────────────────────

@@ -1,6 +1,7 @@
 package com.nainital.backend.seller.controller;
 
 import com.nainital.backend.common.ApiResponse;
+import com.nainital.backend.common.OtpService;
 import com.nainital.backend.seller.dto.*;
 import com.nainital.backend.seller.model.SellerProduct;
 import com.nainital.backend.seller.service.SellerService;
@@ -17,8 +18,28 @@ import java.util.Map;
 public class SellerController {
 
     private final SellerService sellerService;
+    private final OtpService otpService;
 
     // ─── Auth (public) ───────────────────────────────────────────────────────
+
+    @PostMapping("/api/seller/auth/send-otp")
+    public ResponseEntity<ApiResponse<Map<String, String>>> sendOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Email is required"));
+        }
+        String devOtp = otpService.sendOtp(email, "Seller Portal");
+        Map<String, String> resp = devOtp != null ? Map.of("otp", devOtp) : Map.of();
+        return ResponseEntity.ok(ApiResponse.ok("OTP sent to " + email, resp));
+    }
+
+    @PostMapping("/api/seller/auth/verify-otp")
+    public ResponseEntity<ApiResponse<Map<String, String>>> verifyOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String otp = body.get("otp");
+        otpService.verifyOtp(email, otp);
+        return ResponseEntity.ok(ApiResponse.ok("Email verified", Map.of("verified", "true")));
+    }
 
     @PostMapping("/api/seller/auth/register")
     public ResponseEntity<ApiResponse<SellerAuthResponse>> register(@RequestBody SellerRegisterRequest req) {
